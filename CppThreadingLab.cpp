@@ -7,6 +7,7 @@ using namespace std;
 
 int main()
 {
+	omp_lock_t lock;
 	const int NumPoints = 5;
 	auto list = new float[2][NumPoints];
 	list[0][0] = 1; list[1][0] = 1;
@@ -18,6 +19,7 @@ int main()
 	float midX = 0;
 	float midY = 0;
 	int i = 0;
+	omp_init_lock(&lock);
 #pragma omp parallel for private(i) reduction(+:midX,midY)
 	for (i = 0; i < NumPoints; i++)
 	{
@@ -27,7 +29,10 @@ int main()
 	midX = midX / (NumPoints-1);
 	midY = midY / (NumPoints -1);
 	float longX = NULL;
+	float radX = NULL;
 	float longY = NULL;
+	float radY = NULL;
+#pragma omp parallel for shared(radX, radY) private(longX, longY, i)
 	for (int i = 0; i < NumPoints; i++)
 	{
 		int tempX = midX - list[0][i];
@@ -40,8 +45,19 @@ int main()
 		{
 			longY = tempY;
 		}
+		omp_set_lock(&lock);
+		if ((radX < longX) || (radX == NULL))
+		{
+			radX = longX;
+		}
+		if ((radY < longY) || (radY == NULL))
+		{
+			radY = longY;
+		}
+		omp_unset_lock(&lock);
 	}
-	float rad = max(longX, longY);
+	omp_destroy_lock(&lock);
+	float rad = max(radX, radY);
 	cout << "circle center coords is X: " << midX << " Y: " << midY << endl;
 	cout << "radius is: " << rad << endl;
 }
